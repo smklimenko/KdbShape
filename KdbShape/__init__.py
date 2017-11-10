@@ -1,0 +1,1 @@
+APPLICATION_NAME = __name__
