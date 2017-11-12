@@ -1,3 +1,4 @@
+import sys
 from PyQt5.Qsci import *
 from PyQt5.QtGui import *
 
@@ -54,4 +55,4 @@ class KdbLexer(QsciLexerCustom):
 
         txt = self.parent().text()
         for r in self.parser.invalidate(txt, 0, len(txt)):
-            self.setStyling(len(r.token), r.style)
+            self.setStyling(len(r.token.encode("utf-8")), r.style)

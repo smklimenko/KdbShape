@@ -1,9 +1,13 @@
+import re
+
 from PyQt5.QtCore import QAbstractItemModel, QModelIndex, Qt
+from PyQt5.QtGui import QIcon
 
 
 class QPadItem(object):
-    def __init__(self, name, uri, parent=None):
+    def __init__(self, name, uri=None, sid=None, parent=None):
         self.uri = uri
+        self.sid = sid
         self.itemName = name
 
         self.parentItem = parent
@@ -21,6 +25,15 @@ class QPadItem(object):
     def columnCount(self):
         return 1
 
+    def match(self, pattern):
+        if self.sid:
+            return re.match(pattern, self.sid, flags=re.I) is not None
+
+        for c in self.childItems:
+            if c.match(pattern):
+                return True
+        return False
+
     def data(self, uri_hidden):
         return self.itemName if self.uri is None or uri_hidden else self.itemName + " (`" + self.uri + ")"
 
@@ -34,8 +47,12 @@ class QPadItem(object):
 
 
 class QPadTreeModel(QAbstractItemModel):
+
     def __init__(self, source, parent=None):
         super(QPadTreeModel, self).__init__(parent)
+
+        self.QWE = QIcon(':/images/print.png')
+        self.__FOLDER_ICON = QIcon(':/images/folder.svg')
 
         self.roots = []
         self.uriHidden = False
@@ -65,7 +82,11 @@ class QPadTreeModel(QAbstractItemModel):
                 path += name
                 node = nodes.get(path)
                 if node is None:
-                    nodes[path] = node = QPadItem(name, tokens[0] if i == name_length else None, parent)
+                    if i == name_length:
+                        node = QPadItem(name, sid=sid, uri=tokens[0], parent=parent)
+                    else:
+                        node = QPadItem(name, parent=parent)
+                    nodes[path] = node
                     if parent is None:
                         self.roots.append(node)
                 parent = node
@@ -85,15 +106,21 @@ class QPadTreeModel(QAbstractItemModel):
         else:
             return 1
 
+    def filtered(self, index, pattern):
+        if not index.isValid():
+            return False
+        return index.internalPointer().match(pattern)
+
     def data(self, index, role):
         if not index.isValid():
             return None
 
+        p = index.internalPointer()
         if role == Qt.DisplayRole:
-            return index.internalPointer().data(self.uriHidden)
+            return p.data(self.uriHidden)
 
-        # if role == Qt.UserRole:
-        #     return index.internalPointer().
+        if role == Qt.DecorationRole:
+            return self.__FOLDER_ICON if p.sid is None else self.QWE
 
         return None
 

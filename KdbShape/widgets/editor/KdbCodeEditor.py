@@ -21,6 +21,7 @@ class KdbCodeEditor(QsciScintilla):
         # font.setPointSize(10)
 
         self.setFont(font)
+        self.setUtf8(True)
         self.setMarginsFont(font)
 
         # Margin 0 is used for line numbers

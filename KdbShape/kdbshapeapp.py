@@ -1,6 +1,6 @@
 import datetime
 
-from PyQt5.QtCore import QFile, Qt, QTextStream, QSettings
+from PyQt5.QtCore import QFile, Qt, QTextStream, QSettings, QDirIterator
 from PyQt5.QtGui import QIcon
 from PyQt5.QtGui import (QKeySequence, QTextCursor)
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
@@ -11,6 +11,7 @@ from KdbShape import APPLICATION_NAME
 from KdbShape.widgets.console.ConsoleWidget import ConsoleWidget
 from KdbShape.widgets.editor.CodeEditorWidget import CodeEditorWidget
 from KdbShape.widgets.server.ServersViewManager import ServersListManager
+import KdbShape.kdbshapeapp_rc
 
 
 class MainWindow(QMainWindow):
@@ -238,7 +239,7 @@ class MainWindow(QMainWindow):
                           "standard paragraphs to add them.")
 
     def createActions(self):
-        self.createBlankFile = QAction(QIcon(':/images/save.png'), "&New", self,
+        self.createBlankFile = QAction(QIcon(':/images/new.png'), "&New", self,
                                        shortcut=QKeySequence(Qt.CTRL + Qt.Key_N),
                                        statusTip="Create new shape", triggered=self.codeEditor.createBlankEditor)
         # self.newLetterAct = QAction(QIcon(':/images/new.png'), "&New Letter",
