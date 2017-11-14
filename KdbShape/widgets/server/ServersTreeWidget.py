@@ -1,4 +1,7 @@
-from PyQt5.QtCore import QMargins, QSortFilterProxyModel, Qt
+from builtins import property
+
+from PyQt5.QtCore import QMargins, QSortFilterProxyModel, Qt, QSettings
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QAbstractItemView, QDockWidget, QWidget, QVBoxLayout, QLineEdit, QMenu)
 from PyQt5.QtWidgets import QTreeView
 from qtpy import QtCore, QtWidgets
@@ -37,6 +40,8 @@ class ServersTreeWidget(QDockWidget):
         fil = QLineEdit(self)
         fil.textChanged.connect(myProxy.setSearchText)
 
+        self._name = name
+
         self.treeView = QTreeView(self)
 
         self.treeView.setModel(myProxy)
@@ -47,7 +52,8 @@ class ServersTreeWidget(QDockWidget):
         self.treeView.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
 
         self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.treeView.customContextMenuRequested.connect(self.open_context_menu)
+        self.treeView.customContextMenuRequested.connect(self.__open_context_menu)
+        self.treeView.doubleClicked.connect(self.__change_active_server)
 
         header = self.treeView.header()
         header.setStretchLastSection(False)
@@ -65,24 +71,62 @@ class ServersTreeWidget(QDockWidget):
         layout.addWidget(fil)
         layout.addWidget(self.treeView)
 
-    def open_context_menu(self, position):
-        level = 0
-        indexes = self.treeView.selectedIndexes()
-        if len(indexes) > 0:
-            index = indexes[0]
-            while index.parent().isValid():
-                index = index.parent()
-                level += 1
+    @property
+    def name(self):
+        return self._name
 
+    def __change_active_server(self, index):
+        print("Changed by double click")
+        print(index.data(Qt.DisplayRole))
+
+        # item = self.treeView.model().itemFromIndex(index)
+        # print(item)
+
+    def __open_context_menu(self, position):
         menu = QMenu()
-        if level == 0:
-            menu.addAction(self.tr("Create folder"))
-            menu.addAction(self.tr("Remove the folder"))
-            menu.addAction(self.tr("Create New Server"))
-        elif level == 1:
-            menu.addAction(self.tr("Edit Server"))
-            menu.addAction(self.tr("Remove Server"))
-        elif level == 2:
-            menu.addAction(self.tr("Edit object"))
+
+        create_menu = menu.addMenu("Create")
+        create_menu.addAction(QIcon(':/images/editor/new_file.png'), "Instance").triggered.connect(
+            self.create_instance_action)
+        create_menu.addAction(QIcon(':/images/editor/new_folder.png'), "Directory").triggered.connect(
+            self.create_dir_action)
+
+        menu.addSeparator()
+        menu.addAction(self.tr("Connect"))
+        menu.addAction(self.tr("Disconnect"))
+        menu.addSeparator()
+        menu.addAction(self.tr("Edit Instance"))
+        menu.addAction(self.tr("Clone Instance"))
+        menu.addSeparator()
+        menu.addAction(self.tr("Delete"))
 
         menu.exec_(self.treeView.viewport().mapToGlobal(position))
+
+    def create_dir_action(self):
+        print("create_dir_action")
+        pass
+
+    def create_instance_action(self):
+        print("Create instance")
+        pass
+
+    def store_state(self, settings: QSettings):
+        v = self.treeView
+        exp = []
+        for i in v.model().persistentIndexList():
+            if v.isExpanded(i):
+                exp.append(i.data(Qt.UserRole))
+        print(exp)
+        settings.setValue("ExpandedItems", exp)
+
+    def restore_state(self, settings: QSettings):
+        items = settings.value("ExpandedItems", [])
+        if not items:
+            return
+
+        v = self.treeView
+        m = v.model()
+        for item in items:
+            idx = m.match(m.index(0, 0), Qt.UserRole, item, flags=Qt.MatchExactly | Qt.MatchRecursive)
+            for i in idx:
+                v.setExpanded(i, True)

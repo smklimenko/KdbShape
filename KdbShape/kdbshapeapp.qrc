@@ -1,10 +1,22 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource>
-        <file>images/print.png</file>
-        <file>images/new.png</file>
-        <file>images/undo.png</file>
-        <file>images/save.png</file>
-        <file>images/folder.svg</file>
+        <file>images/server/connected.png</file>
+        <file>images/server/disconnected.png</file>
+        <file>images/server/execute_line.png</file>
+        <file>images/server/execute_selection.png</file>
+        <file>images/server/folder.png</file>
+        <file>images/server/next.png</file>
+        <file>images/server/previous.png</file>
+        <file>images/server/disconnected.png</file>
+        <file>images/server/server_default.png</file>
+        <file>images/server/server_selected.png</file>
+        <file>images/server/stop.png</file>
+
+        <file>images/editor/new_file.png</file>
+        <file>images/editor/new_folder.png</file>
+        <file>images/editor/new_script.png</file>
+        <file>images/editor/copy.png</file>
+        <file>images/editor/paste.png</file>
     </qresource>
 </RCC>

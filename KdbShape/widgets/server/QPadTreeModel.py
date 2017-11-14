@@ -1,13 +1,14 @@
 import re
 
 from PyQt5.QtCore import QAbstractItemModel, QModelIndex, Qt
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 
 
 class QPadItem(object):
-    def __init__(self, name, uri=None, sid=None, parent=None):
+    def __init__(self, sid, name, uri=None, parent=None):
         self.uri = uri
         self.sid = sid
+        self.active = False
         self.itemName = name
 
         self.parentItem = parent
@@ -15,6 +16,9 @@ class QPadItem(object):
 
         if parent is not None:
             parent.childItems.append(self)
+
+    def is_instance(self):
+        return self.uri is not None
 
     def child(self, row):
         return self.childItems[row]
@@ -26,7 +30,7 @@ class QPadItem(object):
         return 1
 
     def match(self, pattern):
-        if self.sid:
+        if self.uri:
             return re.match(pattern, self.sid, flags=re.I) is not None
 
         for c in self.childItems:
@@ -47,12 +51,16 @@ class QPadItem(object):
 
 
 class QPadTreeModel(QAbstractItemModel):
-
     def __init__(self, source, parent=None):
         super(QPadTreeModel, self).__init__(parent)
 
-        self.QWE = QIcon(':/images/print.png')
-        self.__FOLDER_ICON = QIcon(':/images/folder.svg')
+        self.__FOLDER_ICON = QIcon(':/images/server/folder.png')
+
+        self.__ITEM_DEFAULT_ICON = QIcon(':/images/server/server_default.png')
+        self.__ITEM_SELECTED_ICON = QIcon(':/images/server/server_selected.png')
+
+        self.__ACTIVE_INSTANCE_FOND = QFont()
+        self.__ACTIVE_INSTANCE_FOND.setBold(True)
 
         self.roots = []
         self.uriHidden = False
@@ -79,13 +87,13 @@ class QPadTreeModel(QAbstractItemModel):
             tokens = sid.split('`')
             name_length = len(tokens) - 2
             for i, name in enumerate(tokens[1:]):
-                path += name
+                path += '`' + name
                 node = nodes.get(path)
                 if node is None:
                     if i == name_length:
-                        node = QPadItem(name, sid=sid, uri=tokens[0], parent=parent)
+                        node = QPadItem(path, name, uri=tokens[0], parent=parent)
                     else:
-                        node = QPadItem(name, parent=parent)
+                        node = QPadItem(path, name, parent=parent)
                     nodes[path] = node
                     if parent is None:
                         self.roots.append(node)
@@ -116,11 +124,19 @@ class QPadTreeModel(QAbstractItemModel):
             return None
 
         p = index.internalPointer()
+        if role == Qt.UserRole:
+            return p.sid
+
         if role == Qt.DisplayRole:
             return p.data(self.uriHidden)
 
+        if role == Qt.FontRole and p.active:
+            return self.__ACTIVE_INSTANCE_FOND
+
         if role == Qt.DecorationRole:
-            return self.__FOLDER_ICON if p.sid is None else self.QWE
+            if p.uri:
+                return self.__ITEM_SELECTED_ICON if p.active else self.__ITEM_DEFAULT_ICON
+            return self.__FOLDER_ICON
 
         return None
 
@@ -130,9 +146,6 @@ class QPadTreeModel(QAbstractItemModel):
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
     def headerData(self, section, orientation, role):
-        # if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-        #     return self.rootItem.data(section)
-        #
         return None
 
     def index(self, row, column, parent):

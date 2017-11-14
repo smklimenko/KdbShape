@@ -1,17 +1,17 @@
 import datetime
 
-from PyQt5.QtCore import QFile, Qt, QTextStream, QSettings, QDirIterator
+from PyQt5.QtCore import QFile, Qt, QTextStream, QSettings
 from PyQt5.QtGui import QIcon
-from PyQt5.QtGui import (QKeySequence, QTextCursor)
+from PyQt5.QtGui import (QKeySequence)
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
-from PyQt5.QtWidgets import (QDialog, QDockWidget, QFileDialog, QMessageBox)
+from PyQt5.QtWidgets import (QDialog, QDockWidget, QFileDialog, QMessageBox, QWidgetAction)
 from PyQt5.QtWidgets import QMainWindow, QApplication, QAction
 
 from KdbShape import APPLICATION_NAME
 from KdbShape.widgets.console.ConsoleWidget import ConsoleWidget
 from KdbShape.widgets.editor.CodeEditorWidget import CodeEditorWidget
-from KdbShape.widgets.server.ServersViewManager import ServersListManager
-import KdbShape.kdbshapeapp_rc
+from KdbShape.widgets.server.ServersTooltarWidget import ServerToolbarWidget
+from KdbShape.widgets.server.ServersViewManager import ServersViewManager
 
 
 class MainWindow(QMainWindow):
@@ -20,17 +20,15 @@ class MainWindow(QMainWindow):
 
         self.connection = None
 
-        self.settings = QSettings(QSettings.IniFormat, QSettings.UserScope, "asd", "settings")
+        self.settings = QSettings(QSettings.IniFormat, QSettings.UserScope, APPLICATION_NAME, "windows")
         self.settings.setFallbacksEnabled(False)
-
-        self._restore_state()
 
         self.codeEditor = CodeEditorWidget(self)
         self.setCentralWidget(self.codeEditor)
 
         # Create Tree widget
-        self.serversViewManager = ServersListManager()
-        for w in self.serversViewManager.reload_servers_widgets():
+        self.serversViewManager = ServersViewManager()
+        for w in self.serversViewManager.create_server_widgets(self):
             w.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
             self.addDockWidget(Qt.LeftDockWidgetArea, w)
 
@@ -60,6 +58,9 @@ class MainWindow(QMainWindow):
         # self.createDockWindows()
 
         self.setWindowTitle(APPLICATION_NAME)
+
+        self._restore_state()
+
 
         # self.newLetter()
 
@@ -117,16 +118,38 @@ class MainWindow(QMainWindow):
         # dock.setWidget(self.serversTree)
         # self.addDockWidget(Qt.LeftDockWidgetArea, dock)
 
+    def _store_state(self):
+        s = self.settings
+
+        s.setValue("geometry", self.saveGeometry())
+        s.setValue("windowState", self.saveState())
+
+        s.beginGroup("ServersTree")
+        for w in self.serversViewManager.get_server_widgets():
+            s.beginGroup(w.name)
+            w.store_state(s)
+            s.endGroup()
+        s.endGroup()
+
     def _restore_state(self):
+        s = self.settings
+
         if self.settings.value("windowState") is not None:
-            self.restoreState(self.settings.value("windowState"))
+            self.restoreState(s.value("windowState"))
 
         if self.settings.value("geometry") is not None:
-            self.restoreGeometry(self.settings.value("geometry"))
+            self.restoreGeometry(s.value("geometry"))
+
+        s.beginGroup("ServersTree")
+        for w in self.serversViewManager.get_server_widgets():
+            n = w.name
+            s.beginGroup(n)
+            w.restore_state(s)
+            s.endGroup()
+        s.endGroup()
 
     def closeEvent(self, event):
-        self.settings.setValue("geometry", self.saveGeometry())
-        self.settings.setValue("windowState", self.saveState())
+        self._store_state()
         event.accept()
 
     def execute(self):
@@ -216,21 +239,6 @@ class MainWindow(QMainWindow):
             else:
                 oldcursor.endEditBlock()
 
-    def addParagraph(self, paragraph):
-        if not paragraph:
-            return
-        document = self.codeEditor.document()
-        cursor = document.find("Yours sincerely,")
-        if cursor.isNull():
-            return
-        cursor.beginEditBlock()
-        cursor.movePosition(QTextCursor.PreviousBlock, QTextCursor.MoveAnchor,
-                            2)
-        cursor.insertBlock()
-        cursor.insertText(paragraph)
-        cursor.insertBlock()
-        cursor.endEditBlock()
-
     def about(self):
         QMessageBox.about(self, "About Dock Widgets",
                           "The <b>Dock Widgets</b> example demonstrates how to use "
@@ -295,12 +303,22 @@ class MainWindow(QMainWindow):
         # self.helpMenu.addAction(self.aboutQtAct)
 
     def createToolBars(self):
-        self.fileToolBar = self.addToolBar("File")
+        server_change_action = QWidgetAction(self)
+        server_change_action.setDefaultWidget(ServerToolbarWidget(self.serversViewManager, self))
+
+        self.toolbar = self.addToolBar("General")
+        self.toolbar.addAction(server_change_action)
+
+
         # self.fileToolBar.addAction(self.newLetterAct)
         # self.fileToolBar.addAction(self.saveAct)
         # self.fileToolBar.addAction(self.printAct)
 
-        self.editToolBar = self.addToolBar("Edit")
+        # self.editToolBar = self.addToolBar("Edit")
+
+        # > self.searchDBLineAction = QtGui.QWidgetAction(self)
+        # > self.searchDBLineAction.setDefaultWidget(self.searchDBLine)
+        # > self.ui.toolBar.addAction(self.searchDBLineAction)
         # self.editToolBar.addAction(self.undoAct)
 
     def createStatusBar(self):
