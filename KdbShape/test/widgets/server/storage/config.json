@@ -1,0 +1,20 @@
+{
+  "localhost": "`:localhost:8000",
+  "A": {
+    "localhost1": "`:localhost:8001",
+    "B": {
+      "D": {
+        "localhost5": "`:localhost:8005"
+      }
+    }
+  },
+  "B": {
+    "`localhost2": "`:localhost:8002",
+    "C": {
+      "localhost3": "`:localhost:8003"
+    },
+    "D": {
+      "localhost4": "`:localhost:8004"
+    }
+  }
+}

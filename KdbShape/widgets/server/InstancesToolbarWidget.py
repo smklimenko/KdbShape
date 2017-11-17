@@ -1,11 +1,10 @@
 from PyQt5.QtWidgets import QLineEdit
 
-from KdbShape.widgets.server import ServersViewManager
+from KdbShape.kdb import CommunicationManager
 
 
-class ServerToolbarWidget(QLineEdit):
-
-    def __init__(self, serversManager: ServersViewManager, parent=None):
+class InstancesToolbarWidget(QLineEdit):
+    def __init__(self, serversManager: CommunicationManager, parent=None):
         super(QLineEdit, self).__init__(parent)
 
         self.setFixedWidth(220)
@@ -22,7 +21,7 @@ class ServerToolbarWidget(QLineEdit):
     def change_current_connection(self):
         print(self.text())
 
-        self.serversManager.change_current_server(self.text())
+        self.serversManager.change_instance(self.text())
 
 
 
