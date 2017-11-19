@@ -1,59 +1,31 @@
-import collections
-from builtins import property
-
-from PyQt5.QtCore import QMargins, QSortFilterProxyModel, Qt, QSettings, QItemSelectionModel
+from PyQt5.QtCore import QMargins, Qt, QSettings, QItemSelectionModel
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (QAbstractItemView, QDockWidget, QWidget, QVBoxLayout, QLineEdit, QMenu, QInputDialog)
+from PyQt5.QtWidgets import (QAbstractItemView, QWidget, QVBoxLayout, QLineEdit, QMenu, QInputDialog)
 from PyQt5.QtWidgets import QTreeView
 from qtpy import QtCore, QtWidgets
 
-from KdbShape.widgets.server.InstancesTreeModel import InstancesTreeModel
-
-InstancesDescriptor = collections.namedtuple("InstancesDescriptor", "name serializer")
-
-
-class InstancesFilteringModel(QSortFilterProxyModel):
-    def __init__(self):
-        super(InstancesFilteringModel, self).__init__()
-        self.searchText = None
-
-    def set_search_text(self, arg=None):
-        self.searchText = arg
-        self.invalidateFilter()
-
-    def filterAcceptsRow(self, row, parent):
-        if not self.searchText:
-            return True
-
-        model = self.sourceModel()
-        idx = model.index(row, 0, parent)
-
-        r = self.searchText.split(" ")
-        for i, r in enumerate(r):
-            r[i] = "(?=.*(" + r + "))"
-        return model.filter_accepts_row(idx, "^" + "".join(r) + ".*$")
+from KdbShape.widgets.server.InstancesTreeModel import InstancesTreeModel, InstancesFilteringModel
+from KdbShape.widgets.server.storage.QPadModelSerializer import QPadModelSerializer
 
 
-class InstancesTreeWidget(QDockWidget):
-    def __init__(self, descriptor: InstancesDescriptor, parent=None):
-        QDockWidget.__init__(self, descriptor.name, parent)
+class InstancesTreeWidget(QWidget):
+    def __init__(self, descriptor, parent=None):
+        QWidget.__init__(self, parent)
 
         self.descriptor = descriptor
-        self.setObjectName(descriptor.name)
 
         self.instancesModel = InstancesTreeModel()
-        self.descriptor.serializer.load_model(self.instancesModel)
+        QPadModelSerializer(self.descriptor.file).load_model(self.instancesModel)
 
         self.instancesModel.dataChanged.connect(self.__store_model)
         self.instancesModel.rowsInserted.connect(self.__store_model)
         self.instancesModel.rowsMoved.connect(self.__store_model)
         self.instancesModel.rowsRemoved.connect(self.__store_model)
 
-        proxy = InstancesFilteringModel()
-        proxy.setSourceModel(self.instancesModel)
+        proxy = InstancesFilteringModel(self.instancesModel)
 
         fil = QLineEdit(self)
-        fil.textChanged.connect(proxy.set_search_text)
+        fil.textChanged.connect(proxy.setSearchText)
 
         self.treeView = QTreeView(self)
 
@@ -76,20 +48,13 @@ class InstancesTreeWidget(QDockWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(QMargins(0, 0, 0, 0))
 
-        widget = QWidget()
-        widget.setLayout(layout)
-
-        self.setWidget(widget)
-
         layout.addWidget(fil)
         layout.addWidget(self.treeView)
 
-    @property
-    def name(self):
-        return self._name
+        self.setLayout(layout)
 
     def __store_model(self):
-        self.descriptor.serializer.save_model(self.instancesModel)
+        QPadModelSerializer(self.descriptor.file).save_model(self.instancesModel)
 
     def __change_active_server(self, index):
         print("Changed by double click: " + str(index))
@@ -103,12 +68,14 @@ class InstancesTreeWidget(QDockWidget):
     def __open_context_menu(self, position):
         menu = QMenu()
 
+        index = self.treeView.indexAt(position)
+
         create_menu = menu.addMenu("Create")
         create_menu.addAction(QIcon(':/images/editor/new_file.png'), "Instance").triggered.connect(
-            self.__action_create_instance)
+            self.__action_create_instance(index))
 
         create_menu.addAction(QIcon(':/images/editor/new_folder.png'), "Directory").triggered.connect(
-            self.__action_create_folder)
+            self.__action_create_folder(index))
 
         menu.addSeparator()
         menu.addAction(self.tr("Connect"))
@@ -121,28 +88,38 @@ class InstancesTreeWidget(QDockWidget):
 
         menu.exec_(self.treeView.viewport().mapToGlobal(position))
 
-    def __action_create_instance(self):
-        print("Create instance")
-        pass
+    def __action_create_instance(self, index):
+        def closure():
+            reply = QInputDialog.getText(self, 'New Folder', "Folder name:")
 
-    def __action_create_folder(self):
-        reply = QInputDialog.getText(self, 'New Folder', "Folder name:")
+            if not reply[1]:
+                return False
 
-        if not reply[1]:
-            return False
+            proxy = self.treeView.model()
+            idx = proxy.mapFromSource(
+                self.instancesModel.insertInstance(reply[0], "`:" + reply[0] + ":123123", -1, proxy.mapToSource(index)))
+            sel = self.treeView.selectionModel()
+            sel.setCurrentIndex(idx, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
 
-        sel = self.treeView.selectionModel()
-        idx = sel.currentIndex()
-        if not idx.isValid():
-            return False
+            return True
 
-        proxy = self.treeView.model()
+        return closure
 
-        idx = proxy.mapFromSource(self.instancesModel.insertFolder(reply[0], -1, proxy.mapToSource(idx)))
+    def __action_create_folder(self, index):
+        def closure():
+            reply = QInputDialog.getText(self, 'New Folder', "Folder name:")
 
-        sel.setCurrentIndex(idx, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
+            if not reply[1]:
+                return False
 
-        return True
+            proxy = self.treeView.model()
+            idx = proxy.mapFromSource(self.instancesModel.insertFolder(reply[0], -1, proxy.mapToSource(index)))
+            sel = self.treeView.selectionModel()
+            sel.setCurrentIndex(idx, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
+
+            return True
+
+        return closure
 
     def store_state(self, settings: QSettings):
         v = self.treeView
@@ -150,7 +127,6 @@ class InstancesTreeWidget(QDockWidget):
         for i in v.model().persistentIndexList():
             if v.isExpanded(i):
                 exp.append(i.data(Qt.UserRole))
-        print(exp)
         settings.setValue("ExpandedItems", exp)
 
     def restore_state(self, settings: QSettings):

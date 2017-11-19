@@ -1,18 +1,17 @@
 import datetime
 
-from PyQt5.QtCore import Qt, QSettings
+from PyQt5.QtCore import Qt, QSettings, QCoreApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtGui import (QKeySequence)
-from PyQt5.QtWidgets import (QDockWidget, QWidgetAction)
+from PyQt5.QtWidgets import (QDockWidget, QWidgetAction, QInputDialog)
 from PyQt5.QtWidgets import QMainWindow, QApplication, QAction
 
 from KdbShape import APPLICATION_NAME
 from KdbShape.kdb.CommunicationManager import CommunicationManager
 from KdbShape.widgets.console.ConsoleWidget import ConsoleWidget
 from KdbShape.widgets.editor.CodeEditorWidget import CodeEditorWidget
-from KdbShape.widgets.server.InstancesManager import InstancesManager
 from KdbShape.widgets.server.InstancesToolbarWidget import InstancesToolbarWidget
-from KdbShape.widgets.server.InstancesTreeWidget import InstancesTreeWidget
+from KdbShape.widgets.server.InstancesWidget import InstancesWidget
 
 
 class MainWindow(QMainWindow):
@@ -20,7 +19,6 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
         self.setWindowTitle(APPLICATION_NAME)
 
-        self.instancesManager = InstancesManager()
         self.communicationManager = CommunicationManager()
 
         self.settings = QSettings(QSettings.IniFormat, QSettings.UserScope, APPLICATION_NAME, "windows")
@@ -43,14 +41,13 @@ class MainWindow(QMainWindow):
         self.__restore_state()
 
     def __create_instances(self):
-        self.instanceWidgets = {}
+        self.instances = InstancesWidget()
 
-        for d in self.instancesManager.get_descriptors():
-            w = InstancesTreeWidget(d, self)
-            w.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-
-            self.instanceWidgets[d.name] = w
-            self.addDockWidget(Qt.LeftDockWidgetArea, w)
+        dock = QDockWidget("Instances", self)
+        dock.setObjectName("Instances")
+        dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        dock.setWidget(self.instances)
+        self.addDockWidget(Qt.LeftDockWidgetArea, dock)
 
     def __create_code_editor(self):
         self.codeEditor = CodeEditorWidget(self)
@@ -82,18 +79,44 @@ class MainWindow(QMainWindow):
         document.undo()
 
     def __create_actions(self):
-        self.createBlankFile = QAction(QIcon(':/images/new.png'), "&New", self,
-                                       shortcut=QKeySequence(Qt.CTRL + Qt.Key_N),
-                                       statusTip="Create new shape", triggered=self.codeEditor.createBlankEditor)
+        self.actionCreateFile = QAction(QIcon(':/images/editor/new_file.png'), "&New", self,
+                                        shortcut=QKeySequence(Qt.CTRL + Qt.Key_N),
+                                        statusTip="Create new shape", triggered=self.codeEditor.createBlankEditor)
 
-        self.executeLine = QAction(QIcon(':/images/save.png'), "&Execute", self,
-                                   shortcut=QKeySequence(Qt.CTRL + Qt.Key_Enter),
-                                   statusTip="Execute current line", triggered=self.__execute_line)
+        self.actionExecuteLine = QAction(QIcon(':/images/editor/save.png'), "&Execute", self,
+                                         shortcut=QKeySequence(Qt.CTRL + Qt.Key_Enter),
+                                         statusTip="Execute current line", triggered=self.__execute_line)
+
+        # self.actionCreateInstancesView = QAction(QIcon(':/images/save.png'), "&Execute", self,
+        #                                  shortcut=QKeySequence(Qt.CTRL + Qt.Key_Enter),
+        #                                  statusTip="Execute current line", triggered=self.__execute_line)
 
     def __create_menus(self):
         file = self.menuBar().addMenu("&File")
-        file.addAction(self.createBlankFile)
-        file.addAction(self.executeLine)
+        file.addAction(self.actionCreateFile)
+        file.addAction("&Open")
+        file.addAction("Save as..")
+        recent = file.addMenu("Open &Recent")
+        file.addSeparator()
+        file.addAction("Se&ttings...", self.__mock_action, shortcut=QKeySequence(Qt.CTRL + Qt.ALT + Qt.Key_S))
+        file.addSeparator()
+        file.addAction("E&xit").triggered.connect(QCoreApplication.quit)
+
+        inst = self.menuBar().addMenu("&Instance")
+        inst.addAction(QIcon(':/images/server/folder.png'), "&Create View").triggered.connect(
+            self.__create_instances_view)
+        inst.addAction(QIcon(':/images/server/folder.png'), "&Delete View").triggered.connect(
+            self.__delete_instances_view)
+        inst.addSeparator()
+        inst.addAction("Create Folder")
+        inst.addAction("Create Instance")
+        inst.addAction("Delete")
+        inst.addSeparator()
+        inst.addAction("Edit Instance")
+        inst.addAction("Clone Instance")
+
+        run = self.menuBar().addMenu("&Run")
+        run.addAction(self.actionExecuteLine)
 
         # self.editMenu = self.menuBar().addMenu("&Edit")
         #
@@ -102,6 +125,17 @@ class MainWindow(QMainWindow):
         # self.menuBar().addSeparator()
         #
         # self.helpMenu = self.menuBar().addMenu("&Help")
+
+    def __create_instances_view(self):
+        name = QInputDialog.getText(self, 'Instances View Name', "Create New Instances View:")
+        if name[1]:
+            self.instances.createInstanceView(name[0])
+
+    def __mock_action(self):
+        print("Mock action called")
+
+    def __delete_instances_view(self):
+        pass
 
     def __create_toolbars(self):
         server_change_action = QWidgetAction(self)
@@ -125,11 +159,8 @@ class MainWindow(QMainWindow):
         s.setValue("geometry", self.saveGeometry())
         s.endGroup()
 
-        s.beginGroup("Instances")
-        for n, w in self.instanceWidgets.items():
-            s.beginGroup(n)
-            w.store_state(s)
-            s.endGroup()
+        s.beginGroup("InstancesView")
+        self.instances.store_state(s)
         s.endGroup()
 
     def __restore_state(self):
@@ -145,11 +176,8 @@ class MainWindow(QMainWindow):
             self.restoreGeometry(wg)
         s.endGroup()
 
-        s.beginGroup("Instances")
-        for n, w in self.instanceWidgets.items():
-            s.beginGroup(n)
-            w.restore_state(s)
-            s.endGroup()
+        s.beginGroup("InstancesView")
+        self.instances.restore_state(s)
         s.endGroup()
 
 

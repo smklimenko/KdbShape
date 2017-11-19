@@ -12,15 +12,15 @@ class JSONModelSerializer:
 
     def save_model(self, model: InstancesTreeModel):
         d = {}
-        self.__save_mode_node(model.rootItem, d)
+        self.__save_model_node(model.rootItem, d)
         print(json.dumps(d[''], indent=2))
 
     @staticmethod
-    def __save_mode_node(item, d):
+    def __save_model_node(item, d):
         if item.isInstance():
             d[item.getName()] = item.getUri()
         else:
             cd = {}
             for c in item.children():
-                JSONModelSerializer.__save_mode_node(c, cd)
+                JSONModelSerializer.__save_model_node(c, cd)
             d[item.getName()] = cd

@@ -1,6 +1,6 @@
 import re
 
-from PyQt5.QtCore import QAbstractItemModel, Qt, QModelIndex
+from PyQt5.QtCore import QAbstractItemModel, Qt, QModelIndex, QSortFilterProxyModel
 from PyQt5.QtGui import QIcon, QFont
 
 
@@ -91,65 +91,31 @@ class TreeItem:
                 return True
         return False
 
-        #
-        # def create_folder(self, name, index=-1):
-        #     if self.__uri:
-        #         raise ValueError
-        #
-        #     item = InstanceItem(name)
-        #
-        #     self.__children.append(item)
-        #     item.__parent = self
-        #     item.__path = self.__path + "`" + name
-        #
-        #     return item
-        #
-        # def create_instance(self, name, uri, index=-1):
-        #     if self.__uri:
-        #         raise ValueError
-        #
-        #     item = InstanceItem(name, uri)
-        #
-        #     self.__children.append(item)
-        #     item.__parent = self
-        #     item.__path = self.__path + "`" + name
-        #
-        #     return item
-        #
-        # def discard(self):
-        #     self.__parent.remove(self)
-        #
-        # def parent(self):
-        #     return self.__parent
-        #
-        # def get_index(self):
-        #     if self.__parent:
-        #         return self.__parent.__children.index(self)
-        #     return 0
-        #
-        # def child_by_row(self, row):
-        #     return self.__children[row]
-        #
-        # def child_by_name(self, name):
-        #     return next((c for c in self.__children if c.__name == name), None)
-        #
-        # def children_count(self):
-        #     return len(self.__children)
-        #
-        # def is_active(self):
-        #     return self.__active
-        #
-        # def is_folder(self):
-        #     return self.__uri is None
-        #
-        # def is_instance(self):
-        #     return self.__uri is not None
-        #
-        # def get_display_name(self, show_uri):
-        #     if show_uri and self.__uri:
-        #         return self.__name + " (" + self.__uri + ")"
-        #     return self.__name
-        #
+
+class InstancesFilteringModel(QSortFilterProxyModel):
+    def __init__(self, source_model):
+        super(InstancesFilteringModel, self).__init__()
+        self.searchPattern = None
+        self.setSourceModel(source_model)
+
+    def setSearchText(self, arg=None):
+        if arg:
+            r = self.searchPattern.split(" ")
+            for i, r in enumerate(r):
+                r[i] = "(?=.*(" + r + "))"
+            self.searchPattern = "^" + "".join(r) + ".*$"
+        else:
+            self.searchPattern = None
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, row, parent):
+        if not self.searchPattern:
+            return True
+
+        model = self.sourceModel()
+        idx = model.index(row, 0, parent)
+
+        return model.filter_accepts_row(idx, self.searchPattern)
 
 
 class InstancesTreeModel(QAbstractItemModel):
@@ -282,84 +248,3 @@ class InstancesTreeModel(QAbstractItemModel):
         if not index.isValid():
             return False
         return index.internalPointer().filter_accepts_item(pattern)
-        #
-        # def get_item(self, index) -> Optional[TreeItem]:
-        #     if index.isValid():
-        #         item = index.internalPointer()
-        #         if item:
-        #             return item
-        #     return self.rootItem
-        #
-        # def insert_instance(self, name, uri, parent=QModelIndex()):
-        #     return self.__append_item(TreeItem(name, uri), parent)
-        #
-        # def append_directory(self, name, parent=QModelIndex()):
-        #     return self.__append_item(TreeItem(name), parent)
-        #
-        # def __append_item(self, item, parent):
-        #     parent_item = self.get_item(parent)
-        #
-        #     size = parent_item.count()
-        #     if parent_item:
-        #         self.beginInsertRows(parent, size, size + 1)
-        #         parent_item.append_item(item)
-        #         self.endInsertRows()
-        #         parent.sibling(size + 1, 0)
-        #         return self.index(size, 0)
-        #     return parent
-        #
-        # def remove_item(self, index):
-        #     pass
-        #
-        # # Inheritance
-        # def columnCount(self, parent):
-        #     return 1
-        #
-        # def data(self, index, role):
-        #
-        # def flags(self, index):
-        #     if not index.isValid():
-        #         return Qt.NoItemFlags
-        #
-        #     return Qt.ItemIsEnabled | Qt.ItemIsSelectable
-        #
-        # def headerData(self, section, orientation, role=0):
-        #     return None
-        #
-        # def index(self, row, column, parent=QModelIndex()):
-        #     if not self.hasIndex(row, column, parent):
-        #         return QModelIndex()
-        #
-        #     if not parent.isValid():
-        #         parent_item = self.rootItem
-        #     else:
-        #         parent_item = parent.internalPointer()
-        #
-        #     child_item = parent_item.child_by_row(row)
-        #     if child_item:
-        #         return self.createIndex(row, column, child_item)
-        #     else:
-        #         return QModelIndex()
-        #
-        # def parent(self, index):
-        #     if not index.isValid():
-        #         return QModelIndex()
-        #
-        #     child_item = index.internalPointer()
-        #     parent_item = child_item.parent()
-        #
-        #     if parent_item == self.rootItem:
-        #         return QModelIndex()
-        #
-        #     return self.createIndex(parent_item.get_index(), 0, parent_item)
-        #
-        # def rowCount(self, parent=QModelIndex()):
-        #     if parent.column() > 0:
-        #         return 0
-        #
-        #     if not parent.isValid():
-        #         parent_item = self.rootItem
-        #     else:
-        #         parent_item = parent.internalPointer()
-        #
-        #     return parent_item.children_count()
