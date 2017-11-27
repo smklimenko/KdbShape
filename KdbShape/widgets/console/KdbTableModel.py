@@ -19,7 +19,7 @@ class KdbTableModel(QAbstractTableModel):
 
         self._data = data
         self.r = len(data)
-        self.c = len(data.dtype.names)
+        self.c = len(data.dtype.codes)
 
     def rowCount(self, parent=None):
         return self.r
@@ -36,7 +36,7 @@ class KdbTableModel(QAbstractTableModel):
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole:
             if orientation == Qt.Horizontal:
-                return self._data.dtype.names[section]
+                return self._data.dtype.codes[section]
             elif orientation == Qt.Vertical:
                 return section
         return None

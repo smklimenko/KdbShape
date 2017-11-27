@@ -1,10 +1,10 @@
 from PyQt5.QtWidgets import QLineEdit
 
-from KdbShape.kdb import CommunicationManager
+from KdbShape.kdb import ConnectionManager
 
 
 class InstancesToolbarWidget(QLineEdit):
-    def __init__(self, serversManager: CommunicationManager, parent=None):
+    def __init__(self, serversManager: ConnectionManager, parent=None):
         super(QLineEdit, self).__init__(parent)
 
         self.setFixedWidth(220)
