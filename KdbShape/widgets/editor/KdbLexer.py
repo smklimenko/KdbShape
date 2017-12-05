@@ -53,6 +53,6 @@ class KdbLexer(QsciLexerCustom):
     def styleText(self, start, end):
         self.startStyling(0)
 
-        txt = self.parent().text()
+        txt = self.parent().__test_current()
         for r in self.parser.invalidate(txt, 0, len(txt)):
             self.setStyling(len(r.token.encode("utf-8")), r.style)

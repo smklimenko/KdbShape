@@ -3,12 +3,14 @@ import collections
 from PyQt5.QtCore import Qt, QRegExp
 from PyQt5.QtGui import QIntValidator, QRegExpValidator
 from PyQt5.QtWidgets import QDialog, QApplication, QDialogButtonBox, QFormLayout, QLineEdit, QLabel, \
-    QHBoxLayout, QSizePolicy, QComboBox, QWidget, QVBoxLayout
+    QHBoxLayout, QSizePolicy, QComboBox, QWidget, QVBoxLayout, QMessageBox
 
 from KdbShape.kdb.Authorization import AuthorizationManager
-from KdbShape.kdb.KdbInstance import KdbInstance
+from KdbShape.kdb.CommunicationManager import CommunicationManager, CommunicationError
+from KdbShape.kdb.KdbInstance import *
+from KdbShape.plugins import PlyginsManager
 
-AuthWidget = collections.namedtuple("AuthWidget", "code widget")
+AuthItem = collections.namedtuple("AuthWidget", "code widget")
 
 
 class UpdatedField:
@@ -20,11 +22,11 @@ class UpdatedField:
 
 
 class InstanceDialog(QDialog):
-    ValidHostnameRegex = r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$"
-
-    def __init__(self, instance: KdbInstance = None, parent=None):
+    def __init__(self, connection_manager: CommunicationManager, instance: KdbInstance = None, parent=None):
         super(InstanceDialog, self).__init__(parent)
         self.setWindowTitle("Instance Details")
+
+        self.connectionManager = connection_manager
 
         self.nameEditor = QLineEdit()
         self.nameEditor.setPlaceholderText("Will be shown in the tree view")
@@ -37,7 +39,7 @@ class InstanceDialog(QDialog):
         self.symbolEditor.editingFinished.connect(lambda: self.__validate_fields(UpdatedField.INVALIDATE))
 
         self.hostEditor = QLineEdit()
-        self.hostEditor.setValidator(QRegExpValidator(QRegExp(InstanceDialog.ValidHostnameRegex)))
+        self.hostEditor.setValidator(QRegExpValidator(QRegExp(ValidHostnameRegex)))
         self.hostEditor.textEdited.connect(lambda v: self.__validate_fields(UpdatedField.HOST, v))
         self.hostEditor.setPlaceholderText("Hostname or IP or empty")
 
@@ -81,28 +83,55 @@ class InstanceDialog(QDialog):
             w.hide()
 
             self.authLayout.addWidget(w)
-            self.authEditor.addItem(provider.title(), userData=AuthWidget(code, w))
+            self.authEditor.addItem(provider.title(), userData=AuthItem(code, w))
 
         self.authEditor.currentTextChanged.connect(self.__action_change_auth)
-        self.__action_change_auth()
 
         card.setLayout(self.authLayout)
 
         form_layout.addRow("", card)
 
         # OK and Cancel buttons
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, Qt.Horizontal)
-        buttons.addButton("Test", QDialogButtonBox.ActionRole)
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, Qt.Horizontal)
 
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
+        self.textButton = self.buttons.addButton("Test", QDialogButtonBox.ActionRole)
+        self.textButton.pressed.connect(self.__test_current)
+
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
 
         main_layout = QVBoxLayout()
         main_layout.addLayout(form_layout)
         main_layout.addStretch()
-        main_layout.addWidget(buttons)
+        main_layout.addWidget(self.buttons)
 
         self.setLayout(main_layout)
+
+        self.__validate_fields(UpdatedField.INVALIDATE, None)
+
+    def create_instance(self):
+        auth = self.__active_auth()
+
+        name = self.nameEditor.text().strip()
+        host = self.hostEditor.text().strip()
+        port = int(self.portEditor.text().strip())
+        return KdbInstance(name, host, port, auth.code, auth.widget.encode())
+
+    def __test_current(self):
+        inst = self.create_instance()
+
+        msg = QMessageBox()
+        msg.setWindowTitle("An Instance Testing Result")
+        msg.setStandardButtons(QMessageBox.Ok)
+
+        try:
+            self.connectionManager.test_instance(inst)
+            msg.setText("Connected and disconnected successfully")
+            msg.setIcon(QMessageBox.Information)
+        except CommunicationError as err:
+            msg.setText(str(err))
+            msg.setIcon(QMessageBox.Critical)
+        msg.exec_()
 
     def __validate_fields(self, source: int, v: str = None):
         if source == UpdatedField.SYMBOL:
@@ -116,23 +145,35 @@ class InstanceDialog(QDialog):
             if cnt > 1:
                 self.portEditor.setText(v[1])
             if cnt > 2:
-                ud = self.get_active_auth()
+                ud = self.__active_auth()
                 ud.widget.decode(':'.join(v[2:]))
 
         else:
-            v = (self.hostEditor.text(), self.portEditor.text(), self.get_active_auth().widget.encode())
-            self.symbolEditor.setText("`:" + ":".join(v))
-
+            v = (self.hostEditor.text(), self.portEditor.text(), self.__active_auth().widget.encode())
+            length = sum(len(i) for i in v)
+            if length:
+                self.symbolEditor.setText("`:" + ":".join(v).strip(":"))
+            else:
+                self.symbolEditor.setText("")
         self.__validate_buttons()
 
     def __validate_buttons(self):
-        pass
+        res = True
+        # For test only symbol is required
+        res = res and len(self.hostEditor.text().strip())
+        res = res and len(self.portEditor.text().strip())
+        res = res and self.__active_auth().widget.validate()
+        self.textButton.setEnabled(res)
 
-    def get_active_auth(self) -> AuthWidget:
+        # But for creation - name as well
+        res = res and len(self.nameEditor.text().strip())
+        self.buttons.button(QDialogButtonBox.Ok).setEnabled(res)
+
+    def __active_auth(self) -> AuthItem:
         return self.authEditor.itemData(self.authEditor.currentIndex())
 
     def __action_change_auth(self):
-        ud = self.get_active_auth()
+        ud = self.__active_auth()
 
         layout = self.authLayout
         for w in (layout.itemAt(i).widget() for i in range(layout.count())):
@@ -144,10 +185,23 @@ class InstanceDialog(QDialog):
 if __name__ == '__main__':
     import sys
 
+
+    def dlg_f(result):
+        if result == QDialog.Accepted:
+            print(mainWin.create_instance())
+
+
     try:
+        PlyginsManager.initialize()
+
+        m = CommunicationManager()
+
         app = QApplication(sys.argv)
-        mainWin = InstanceDialog()
+        mainWin = InstanceDialog(m)
         mainWin.show()
+
+        mainWin.finished.connect(dlg_f)
+
         sys.exit(app.exec_())
     except Exception as e:
         print(e)

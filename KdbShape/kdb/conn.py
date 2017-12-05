@@ -1,13 +1,16 @@
 from qpython import qconnection
 
+from KdbShape.kdb.Authorization import AuthorizationManager
+from KdbShape.kdb.KdbInstance import KdbInstance
 
-def q_no_credentials():
-    return {}
 
-
-def open_q_connection(host, port, credential=q_no_credentials):
-    c = credential() if callable(credential) else credential
-    q = qconnection.QConnection(host, port, **c)
+def open_q_connection(instance: KdbInstance):
+    credentials = AuthorizationManager.resolve(instance)
+    if credentials:
+        q = qconnection.QConnection(instance.host, instance.port, credentials.username, credentials.password,
+                                    encoding="utf-8")
+    else:
+        q = qconnection.QConnection(instance.host, instance.port, encoding="utf-8")
     q.open()
     return q
 

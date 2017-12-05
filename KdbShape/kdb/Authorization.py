@@ -5,7 +5,7 @@ from PyQt5.QtCore import QRegExp, pyqtSignal
 from PyQt5.QtGui import QRegExpValidator
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QFormLayout, QLineEdit
 
-from KdbShape.kdb.KdbInstance import KdbInstance
+from KdbShape.kdb.KdbInstance import KdbInstance, Credentials
 
 
 class AuthorizationWidget(QWidget):
@@ -40,7 +40,7 @@ class AuthorizationProvider:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def resolve(self, instance: KdbInstance) -> Optional[str]:
+    def resolve(self, instance: KdbInstance) -> Optional[Credentials]:
         raise NotImplementedError()
 
 
@@ -52,17 +52,21 @@ class AuthorizationManager:
         return AuthorizationManager.__providers.keys()
 
     @staticmethod
-    def provider(code) -> AuthorizationProvider:
+    def provider(code: str) -> AuthorizationProvider:
         v = AuthorizationManager.__providers[code.lower()]
         return v()
 
     @staticmethod
-    def register(code, provider):
+    def register(code: str, provider):
         AuthorizationManager.__providers[code.lower()] = provider
 
     @staticmethod
-    def unregister(code):
+    def unregister(code: str):
         del AuthorizationManager.__providers[code]
+
+    @staticmethod
+    def resolve(instance: KdbInstance) -> Credentials:
+        return AuthorizationManager.provider(instance.auth).resolve(instance)
 
 
 class NoAuthorizationProvider(AuthorizationProvider):
@@ -95,7 +99,7 @@ class NoAuthorizationProvider(AuthorizationProvider):
     def create_widget(self, parent=None):
         return NoAuthorizationProvider.TheWidget(parent)
 
-    def resolve(self, instance: KdbInstance) -> Optional[str]:
+    def resolve(self, instance: KdbInstance) -> Optional[Credentials]:
         return None
 
 
@@ -132,7 +136,7 @@ class BasicAuthorizationProvider(AuthorizationProvider):
             try:
                 i = credentials.index(":")
                 self.loginEditor.setText(credentials[:i])
-                self.passwordEditor.setText(credentials[i+1:])
+                self.passwordEditor.setText(credentials[i + 1:])
             except ValueError:
                 self.loginEditor.setText(credentials)
                 self.passwordEditor.setText("")
@@ -147,7 +151,7 @@ class BasicAuthorizationProvider(AuthorizationProvider):
         super().__init__("Username/Password")
 
     def resolve(self, instance: KdbInstance):
-        return instance.credentials()
+        return instance.credentials
 
     def create_widget(self, parent=None):
         return BasicAuthorizationProvider.TheWidget(parent)

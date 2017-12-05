@@ -10,7 +10,7 @@ class KdbCodeEditor(QsciScintilla):
     _file = None
 
     def __init__(self, file=None, parent=None):
-        super(KdbCodeEditor, self).__init__(parent)
+        super().__init__(parent)
 
         self._file = file
 
@@ -64,9 +64,9 @@ class KdbCodeEditor(QsciScintilla):
         # here: http://www.scintilla.org/ScintillaDoc.html)
         self.SendScintilla(QsciScintilla.SCI_SETHSCROLLBAR, 0)
 
-        with open(file, 'r') as txt:
-            data = txt.read()
-            self.setText(data)
+        # with open(file, 'r') as txt:
+        #     data = txt.read()
+        #     self.setText(data)
 
 
         # not too small

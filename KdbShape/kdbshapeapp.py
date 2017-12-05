@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QDockWidget, QWidgetAction, QInputDialog)
 from PyQt5.QtWidgets import QMainWindow, QApplication, QAction
 
 from KdbShape import APPLICATION_NAME
-from KdbShape.kdb.ConnectionManager import CommunicationManager
+from KdbShape.kdb.CommunicationManager import CommunicationManager
 from KdbShape.widgets.console.ConsoleWidget import ConsoleWidget
 from KdbShape.widgets.editor.CodeEditorWidget import CodeEditorWidget
 from KdbShape.widgets.server.InstancesToolbarWidget import InstancesToolbarWidget
