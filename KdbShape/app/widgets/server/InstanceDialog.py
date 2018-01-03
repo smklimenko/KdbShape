@@ -1,14 +1,15 @@
 import collections
+import traceback
 
+from KdbShape.conn.ConnectionManager import ConnectionManager, CommunicationError
 from PyQt5.QtCore import Qt, QRegExp
 from PyQt5.QtGui import QIntValidator, QRegExpValidator
 from PyQt5.QtWidgets import QDialog, QApplication, QDialogButtonBox, QFormLayout, QLineEdit, QLabel, \
     QHBoxLayout, QSizePolicy, QComboBox, QWidget, QVBoxLayout, QMessageBox
 
-from KdbShape.kdb.Authorization import AuthorizationManager
-from KdbShape.kdb.CommunicationManager import CommunicationManager, CommunicationError
-from KdbShape.kdb.KdbInstance import *
-from KdbShape.plugins import PlyginsManager
+from KdbShape import PluginManager
+from KdbShape.model.KdbInstance import *
+from KdbShape.services.conn.Authorization import AuthorizationManager, AuthorizationContext
 
 AuthItem = collections.namedtuple("AuthWidget", "code widget")
 
@@ -22,11 +23,14 @@ class UpdatedField:
 
 
 class InstanceDialog(QDialog):
-    def __init__(self, connection_manager: CommunicationManager, instance: KdbInstance = None, parent=None):
+    def __init__(self, connection_manager: ConnectionManager,
+                 instance: KdbInstance = None, context: AuthorizationContext = None,
+                 parent=None):
         super(InstanceDialog, self).__init__(parent)
         self.setWindowTitle("Instance Details")
 
         self.connectionManager = connection_manager
+        self.authorizationContext = context
 
         self.nameEditor = QLineEdit()
         self.nameEditor.setPlaceholderText("Will be shown in the tree view")
@@ -78,12 +82,12 @@ class InstanceDialog(QDialog):
         for code in AuthorizationManager.codes():
             provider = AuthorizationManager.provider(code)
 
-            w = provider.create_widget()
-            w.credentialsChanged.connect(lambda v: self.__validate_fields(UpdatedField.AUTH, v))
+            w = provider.widget()
+            w.credentialsChanged.connect(lambda v: self.__validate_fields(UpdatedField.AUTH, None))
             w.hide()
 
             self.authLayout.addWidget(w)
-            self.authEditor.addItem(provider.title(), userData=AuthItem(code, w))
+            self.authEditor.addItem(provider.title, userData=AuthItem(code, w))
 
         self.authEditor.currentTextChanged.connect(self.__action_change_auth)
 
@@ -112,10 +116,11 @@ class InstanceDialog(QDialog):
     def create_instance(self):
         auth = self.__active_auth()
 
-        name = self.nameEditor.text().strip()
-        host = self.hostEditor.text().strip()
-        port = int(self.portEditor.text().strip())
-        return KdbInstance(name, host, port, auth.code, auth.widget.encode())
+        name = self.nameEditor.text()
+        host = self.hostEditor.text()
+        port = int(self.portEditor.text())
+        c = auth.widget.encode()
+        return KdbInstance(name, host, port, c[0], c[1])
 
     def __test_current(self):
         inst = self.create_instance()
@@ -125,7 +130,7 @@ class InstanceDialog(QDialog):
         msg.setStandardButtons(QMessageBox.Ok)
 
         try:
-            self.connectionManager.test_instance(inst)
+            self.connectionManager.test(inst, self.authorizationContext)
             msg.setText("Connected and disconnected successfully")
             msg.setIcon(QMessageBox.Information)
         except CommunicationError as err:
@@ -135,26 +140,20 @@ class InstanceDialog(QDialog):
 
     def __validate_fields(self, source: int, v: str = None):
         if source == UpdatedField.SYMBOL:
-            while len(v) > 0 and v[0] in "`:":
-                v = v[1:]
-            v = v.split(":")
+            d = KdbInstance.parsedict(v)
+            self.hostEditor.setText(d["host"])
+            self.portEditor.setText(d["port"])
 
-            cnt = len(v)
-            if cnt > 0:
-                self.hostEditor.setText(v[0])
-            if cnt > 1:
-                self.portEditor.setText(v[1])
-            if cnt > 2:
-                ud = self.__active_auth()
-                ud.widget.decode(':'.join(v[2:]))
-
+            self.__active_auth().widget.decode(d["username"], d["password"])
+            self.__validate_fields(UpdatedField.INVALIDATE, v)
         else:
-            v = (self.hostEditor.text(), self.portEditor.text(), self.__active_auth().widget.encode())
+            v = (self.hostEditor.text(), self.portEditor.text())
             length = sum(len(i) for i in v)
             if length:
                 self.symbolEditor.setText("`:" + ":".join(v).strip(":"))
             else:
                 self.symbolEditor.setText("")
+
         self.__validate_buttons()
 
     def __validate_buttons(self):
@@ -192,12 +191,12 @@ if __name__ == '__main__':
 
 
     try:
-        PlyginsManager.initialize()
+        PluginManager.initialize()
 
-        m = CommunicationManager()
+        m = ConnectionManager()
 
         app = QApplication(sys.argv)
-        mainWin = InstanceDialog(m)
+        mainWin = InstanceDialog(m, KdbInstance("test", "gcxwhu01.uk.db.com", 20900))
         mainWin.show()
 
         mainWin.finished.connect(dlg_f)
@@ -205,3 +204,4 @@ if __name__ == '__main__':
         sys.exit(app.exec_())
     except Exception as e:
         print(e)
+        traceback.print_exc(file=sys.stdout)

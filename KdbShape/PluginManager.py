@@ -3,16 +3,15 @@ import os
 import re
 import sys
 
-import KdbShape
-
 PluginFolder = "./plugins"
 MainModule = "__init__"
 
 
 def initialize():
-    folder = [PluginFolder]
-    if "plugins" in KdbShape.args:
-        folder = KdbShape.args.plugins
+    try:
+        folder = sys.argv[1 + sys.argv.index('-plugins')]
+    except Exception:
+        folder = PluginFolder
 
     pysearchre = re.compile('.py$', re.IGNORECASE)
     pluginfiles = filter(pysearchre.search, os.listdir(folder))

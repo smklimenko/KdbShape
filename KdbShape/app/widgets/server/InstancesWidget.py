@@ -6,7 +6,7 @@ from PyQt5.QtCore import QSettings
 from PyQt5.QtWidgets import QTabWidget
 
 from KdbShape import APPLICATION_NAME
-from KdbShape.widgets.server.InstancesTreeWidget import InstancesTreeWidget
+from KdbShape.app.widgets.server.InstancesTreeWidget import InstancesTreeWidget
 
 InstancesDescriptor = collections.namedtuple("InstancesDescriptor", "name file")
 

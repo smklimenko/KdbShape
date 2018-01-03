@@ -1,11 +1,11 @@
+from KdbShape.widgets.server.InstancesTreeModel import InstancesTreeModel, InstancesFilteringModel
 from PyQt5.QtCore import QMargins, Qt, QSettings, QItemSelectionModel
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QAbstractItemView, QWidget, QVBoxLayout, QLineEdit, QMenu, QInputDialog)
 from PyQt5.QtWidgets import QTreeView
 from qtpy import QtCore, QtWidgets
 
-from KdbShape.widgets.server.InstancesTreeModel import InstancesTreeModel, InstancesFilteringModel
-from KdbShape.widgets.server.storage.QPadModelSerializer import QPadModelSerializer
+from KdbShape.app.widgets.server.storage.QPadModelSerializer import QPadModelSerializer
 
 
 class InstancesTreeWidget(QWidget):

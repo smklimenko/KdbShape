@@ -1,5 +1,8 @@
 import datetime
 
+from KdbShape.widgets.console.ConsoleWidget import ConsoleWidget
+from KdbShape.widgets.server.InstancesToolbarWidget import InstancesToolbarWidget
+from KdbShape.widgets.server.InstancesWidget import InstancesWidget
 from PyQt5.QtCore import Qt, QSettings, QCoreApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtGui import (QKeySequence)
@@ -7,11 +10,8 @@ from PyQt5.QtWidgets import (QDockWidget, QWidgetAction, QInputDialog)
 from PyQt5.QtWidgets import QMainWindow, QApplication, QAction
 
 from KdbShape import APPLICATION_NAME
-from KdbShape.kdb.CommunicationManager import CommunicationManager
-from KdbShape.widgets.console.ConsoleWidget import ConsoleWidget
-from KdbShape.widgets.editor.CodeEditorWidget import CodeEditorWidget
-from KdbShape.widgets.server.InstancesToolbarWidget import InstancesToolbarWidget
-from KdbShape.widgets.server.InstancesWidget import InstancesWidget
+from KdbShape.app.widgets.editor.CodeEditorWidget import CodeEditorWidget
+from KdbShape.services.conn.ConnectionManager import ConnectionManager
 
 
 class MainWindow(QMainWindow):
@@ -19,7 +19,7 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
         self.setWindowTitle(APPLICATION_NAME)
 
-        self.communicationManager = CommunicationManager()
+        self.communicationManager = ConnectionManager()
 
         self.settings = QSettings(QSettings.IniFormat, QSettings.UserScope, APPLICATION_NAME, "windows")
         self.settings.setFallbacksEnabled(False)

@@ -1,6 +1,6 @@
 import unittest
 
-from KdbShape.widgets.editor.KdbParser import KdbParser
+from KdbShape.app.widgets.editor.KdbParser import KdbParser
 
 
 class KdbParserTest(unittest.TestCase):

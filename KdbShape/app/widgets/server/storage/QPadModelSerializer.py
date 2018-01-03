@@ -2,7 +2,7 @@ from collections import deque
 
 from PyQt5.QtCore import QModelIndex
 
-from KdbShape.widgets.server.InstancesTreeModel import InstancesTreeModel
+from KdbShape.app.widgets.server.InstancesTreeModel import InstancesTreeModel
 
 
 class QPadModelSerializer:

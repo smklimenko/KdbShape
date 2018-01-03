@@ -1,8 +1,7 @@
-import sys
 from PyQt5.Qsci import *
 from PyQt5.QtGui import *
 
-from  KdbShape.widgets.editor.KdbParser import *
+from  KdbShape.app.widgets.editor.KdbParser import *
 
 
 class KdbLexer(QsciLexerCustom):

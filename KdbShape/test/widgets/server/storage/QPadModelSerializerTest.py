@@ -1,7 +1,8 @@
 import unittest
 
 from KdbShape.widgets.server.InstancesTreeModel import InstancesTreeModel
-from KdbShape.widgets.server.storage.QPadModelSerializer import QPadModelSerializer
+
+from KdbShape.app.widgets.server.storage.QPadModelSerializer import QPadModelSerializer
 
 
 class QPadModelSerializerTest(unittest.TestCase):

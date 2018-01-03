@@ -1,6 +1,6 @@
 import json
 
-from KdbShape.widgets.server.InstancesTreeModel import InstancesTreeModel
+from KdbShape.app.widgets.server.InstancesTreeModel import InstancesTreeModel
 
 
 class JSONModelSerializer:
